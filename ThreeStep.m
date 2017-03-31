@@ -4,23 +4,33 @@ function [pframe, MVframe] = ThreeStep(aframe,tframe,bsize,R)
 %       aframe: anchor/current frame
 %       tframe: target/reference frame
 %       bsize: block size
-%       R:  search range, the total search area is ((2*R+1)^2
+%       R:  search range, the total search area is ((2*R+1)^2)
 %  @output
 %       pframe: Predicted frame
 %       MVframe:  Motion vectors, using multidimensional array
 %              MVframe(:,:,1) are all the dx values
 %              MVframe(:,:,2) are all the dy values
+%  Produces the Motion Vector Field, the Residual Frame, and a Predicted 
+%  Frame from the Motion Vector Field.
 
 [height, width] = size(aframe);
 aframe = double(aframe);
 tframe = double(tframe);
-MVframe = zeros(height/bsize,width/bsize,2);
-pframe = zeros(height,width);
+wremain = mod(width,bsize);
+hremain = mod(height,bsize);
+% adds zero padding for integer division of frame into macroblocks
+if((wremain ~= 0) || (hremain ~=0))
+   aframe = padarray(aframe,[hremain,wremain],'post');
+   tframe = padarray(tframe,[hremain,wremain],'post');
+end
+modifiedsize = size(aframe);
+pframe = zeros(modifiedsize(1),modifiedsize(2));
+MVframe = zeros(modifiedsize(1)/bsize,modifiedsize(2)/bsize,2);
 for y = 1:bsize:height
     for x = 1:bsize:width
+        % reset the search variables for each block
         MAD = 255; %max error possible
         minMAD = MAD; 
-        % reset the motion vectors and offsets for each block
         range = R;
         mvx = 0;
         mvy = 0;
@@ -30,7 +40,7 @@ for y = 1:bsize:height
 %         subplot(1,3,1),imshow(ablock);  % used for debug
 %         title('target block'); % for debug
 
-% searches till the range is 1 and compares using MeanAbsDiff
+% searches till the range is 1 and minimizes the error using MeanAbsDiff
 while (range > 1)  
 % reduce the range by half for each step
     range = ceil(range/2);
@@ -55,7 +65,7 @@ while (range > 1)
                     x+j+xoffset>0 && x+j+xoffset+bsize-1<width+1 && ...
                     (i > 0 || j> 0))
                % compare blocks between images
-                MAD = sum(sum(abs(aframe(y:y+bsize-1,x:x+bsize-1) ...
+              MAD = sum(sum(abs(aframe(y:y+bsize-1,x:x+bsize-1) ...
                       - tframe(y+i+yoffset:y+i+yoffset+bsize-1,...
                      x+j+xoffset:x+j+xoffset+bsize-1))))/(bsize*bsize);
 %                 tblock = uint8(tframe(y+i+yoffset:y+i+yoffset+bsize-1,...
@@ -81,24 +91,29 @@ while (range > 1)
     mvy = mvy + dy;
 end
         % build up the motion vectors of the frame
-        MVframe((y-1)/bsize+1,(x-1)/bsize+1,1) = mvx;
-        MVframe((y-1)/bsize+1,(x-1)/bsize+1,2) = mvy;
+        MVframe((y-1)/bsize+1,(x-1)/bsize+1,1) = xoffset;
+        MVframe((y-1)/bsize+1,(x-1)/bsize+1,2) = yoffset;
         % predict the anchor frame from the target frame and motion vector 
-        pframe(y:y+bsize-1,x:x+bsize-1) = tframe(y+mvy:y+mvy+bsize-1,...
-            x+mvx:x+mvx+bsize-1);
+        pframe(y:y+bsize-1,x:x+bsize-1) = tframe(y+yoffset:y+yoffset...
+            +bsize-1, x+xoffset:x+xoffset+bsize-1);
     end
 end
 figure;
+% removes the zero padding from macroblocking
+pframe = pframe(1:end-hremain,1:end-wremain);
+aframe = aframe(1:end-hremain,1:end-wremain);
 % plots the motion vectors for each block
 quiver(MVframe(:,:,1),MVframe(:,:,2));
-title(sprintf('Motion Vector Field using R = %d',R));
+title(sprintf('3-Step Motion Vector Field: BlockSize = %d, R = %d',bsize,R));
 psnr = 10*log10(255*255/immse(pframe,aframe)); 
 eframe = pframe - aframe; % residual frame between actual and predicted 
 pframe = uint8(pframe);
-eframe = uint8(eframe);
+eframe = uint8(abs(eframe));
 figure;
-imshow(eframe),title(sprintf('Residual Image using R = %d',R));
+imshow(eframe),
+title(sprintf('3-Step Residual Image: BlockSize = %d, R = %d',bsize,R));
 figure;
 imshow(pframe),
-title(sprintf('Predicted Frame: R = %d, PSNR = %0.2f',R,psnr));
+title(sprintf('3-Step Predicted Frame: BlockSize = %d, R = %d, PSNR = %0.2f',...
+    bsize,R,psnr));
 end

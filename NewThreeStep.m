@@ -16,8 +16,16 @@ function [pframe, mvframe] = NewThreeStep(aframe,tframe,bsize)
 [height, width] = size(aframe);
 aframe = double(aframe);
 tframe = double(tframe);
-mvframe = zeros(height/bsize,width/bsize,2);
-pframe = zeros(height,width);
+wremain = mod(width,bsize);
+hremain = mod(height,bsize);
+% adds zero padding for integer division of frame into macroblocks
+if((wremain ~= 0) || (hremain ~=0))
+   aframe = padarray(aframe,[hremain,wremain],'post');
+   tframe = padarray(tframe,[hremain,wremain],'post');
+end
+modifiedsize = size(aframe);
+pframe = zeros(modifiedsize(1),modifiedsize(2));
+mvframe = zeros(modifiedsize(1)/bsize,modifiedsize(2)/bsize,2);
 % for every macro block in the image a search is made
 for y = 1:bsize:height
     for x = 1:bsize:width
@@ -96,7 +104,7 @@ if(xoffset == 0 && yoffset ==0)
     continue
     
 % if best match is at edge of range continue with normal 3 step method
-elseif(xoffset == 4 || yoffset == 4)
+elseif(abs(xoffset) == 4 || abs(yoffset) == 4)
     % search 2 more steps
     while (range > 1)  
     % reduce the range by half for each step
@@ -281,6 +289,9 @@ end
 end
 end
 figure;
+% removes the zero padding from macroblocking
+pframe = pframe(1:end-hremain,1:end-wremain);
+aframe = aframe(1:end-hremain,1:end-wremain);
 % plots the motion vectors for each block
 quiver(mvframe(:,:,1),mvframe(:,:,2));
 title(sprintf('New-3-Step Motion Vector Field: BlockSize = %d',bsize));
