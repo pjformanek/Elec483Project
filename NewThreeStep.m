@@ -18,12 +18,21 @@ aframe = double(aframe);
 tframe = double(tframe);
 wremain = mod(width,bsize);
 hremain = mod(height,bsize);
+wpads = 0;
+hpads = 0;
 % adds zero padding for integer division of frame into macroblocks
-if((wremain ~= 0) || (hremain ~=0))
-   aframe = padarray(aframe,[hremain,wremain],'post');
-   tframe = padarray(tframe,[hremain,wremain],'post');
+if(wremain ~= 0)
+   wpads = bsize-wremain;
+   aframe = padarray(aframe,[0,wpads],'post');
+   tframe = padarray(tframe,[0,wpads],'post');
+end
+if(hremain ~= 0)
+  hpads = bsize-hremain;
+  aframe = padarray(aframe,[hpads,0],'post');
+  tframe = padarray(tframe,[hpads,0],'post');
 end
 modifiedsize = size(aframe);
+% preallocate for a modified frame size with padding
 pframe = zeros(modifiedsize(1),modifiedsize(2));
 mvframe = zeros(modifiedsize(1)/bsize,modifiedsize(2)/bsize,2);
 % for every macro block in the image a search is made
@@ -99,7 +108,7 @@ if(xoffset == 0 && yoffset ==0)
     mvframe((y-1)/bsize+1,(x-1)/bsize+1,1) = xoffset;
     mvframe((y-1)/bsize+1,(x-1)/bsize+1,2) = yoffset;
     % predict the anchor frame from the target frame and motion vector 
-   pframe(y:y+bsize-1,x:x+bsize-1) = tframe(y+yoffset:y+yoffset+bsize-1,...
+    pframe(y:y+bsize-1,x:x+bsize-1) = tframe(y+yoffset:y+yoffset+bsize-1,...
         x+xoffset:x+xoffset+bsize-1);
     continue
     
@@ -288,22 +297,22 @@ end
         x+xoffset:x+xoffset+bsize-1);
 end
 end
-figure;
 % removes the zero padding from macroblocking
-pframe = pframe(1:end-hremain,1:end-wremain);
-aframe = aframe(1:end-hremain,1:end-wremain);
-% plots the motion vectors for each block
-quiver(mvframe(:,:,1),mvframe(:,:,2));
-title(sprintf('New-3-Step Motion Vector Field: BlockSize = %d',bsize));
-psnr = 10*log10(255*255/immse(pframe,aframe)); 
-eframe = pframe - aframe; % residual frame between actual and predicted 
-pframe = uint8(pframe);
-eframe = uint8(abs(eframe));
-figure;
-imshow(eframe),
-title(sprintf('New-3-Step Residual Image: BlockSize = %d',bsize));
-figure;
-imshow(pframe),
-title(sprintf('New-3-Step Predicted Frame: BlockSize = %d,PSNR = %0.2f',...
-    bsize,psnr));
+pframe = pframe(1:end-hpads,1:end-wpads);
+% aframe = aframe(1:end-hpads,1:end-wpads);
+% % plots the motion vectors for each block
+% figure;
+% quiver(mvframe(:,:,1),mvframe(:,:,2));
+% title(sprintf('New-3-Step Motion Vector Field: BlockSize = %d',bsize));
+% psnr = 10*log10(255*255/immse(pframe,aframe)); 
+% eframe = pframe - aframe; % residual frame between actual and predicted 
+% pframe = uint8(pframe);
+% eframe = uint8(abs(eframe));
+% figure;
+% imshow(eframe),
+% title(sprintf('New-3-Step Residual Image: BlockSize = %d',bsize));
+% figure;
+% imshow(pframe),
+% title(sprintf('New-3-Step Predicted Frame: BlockSize = %d,PSNR = %0.2f',...
+%     bsize,psnr));
 end
