@@ -16,8 +16,16 @@ function [pframe, MVframe] = ThreeStep(aframe,tframe,bsize,R)
 [height, width] = size(aframe);
 aframe = double(aframe);
 tframe = double(tframe);
-MVframe = zeros(height/bsize,width/bsize,2);
-pframe = zeros(height,width);
+wremain = mod(width,bsize);
+hremain = mod(height,bsize);
+% adds zero padding for integer division of frame into macroblocks
+if((wremain ~= 0) || (hremain ~=0))
+   aframe = padarray(aframe,[hremain,wremain],'post');
+   tframe = padarray(tframe,[hremain,wremain],'post');
+end
+modifiedsize = size(aframe);
+pframe = zeros(modifiedsize(1),modifiedsize(2));
+MVframe = zeros(modifiedsize(1)/bsize,modifiedsize(2)/bsize,2);
 for y = 1:bsize:height
     for x = 1:bsize:width
         % reset the search variables for each block
@@ -83,26 +91,29 @@ while (range > 1)
     mvy = mvy + dy;
 end
         % build up the motion vectors of the frame
-        MVframe((y-1)/bsize+1,(x-1)/bsize+1,1) = mvx;
-        MVframe((y-1)/bsize+1,(x-1)/bsize+1,2) = mvy;
+        MVframe((y-1)/bsize+1,(x-1)/bsize+1,1) = xoffset;
+        MVframe((y-1)/bsize+1,(x-1)/bsize+1,2) = yoffset;
         % predict the anchor frame from the target frame and motion vector 
-        pframe(y:y+bsize-1,x:x+bsize-1) = tframe(y+mvy:y+mvy+bsize-1,...
-            x+mvx:x+mvx+bsize-1);
+        pframe(y:y+bsize-1,x:x+bsize-1) = tframe(y+yoffset:y+yoffset...
+            +bsize-1, x+xoffset:x+xoffset+bsize-1);
     end
 end
 figure;
+% removes the zero padding from macroblocking
+pframe = pframe(1:end-hremain,1:end-wremain);
+aframe = aframe(1:end-hremain,1:end-wremain);
 % plots the motion vectors for each block
 quiver(MVframe(:,:,1),MVframe(:,:,2));
-title(sprintf('Motion Vector Field: BlockSize = %d, R = %d',bsize,R));
+title(sprintf('3-Step Motion Vector Field: BlockSize = %d, R = %d',bsize,R));
 psnr = 10*log10(255*255/immse(pframe,aframe)); 
 eframe = pframe - aframe; % residual frame between actual and predicted 
 pframe = uint8(pframe);
 eframe = uint8(abs(eframe));
 figure;
 imshow(eframe),
-title(sprintf('Residual Image: BlockSize = %d, R = %d',bsize,R));
+title(sprintf('3-Step Residual Image: BlockSize = %d, R = %d',bsize,R));
 figure;
 imshow(pframe),
-title(sprintf('Predicted Frame: BlockSize = %d, R = %d, PSNR = %0.2f',...
+title(sprintf('3-Step Predicted Frame: BlockSize = %d, R = %d, PSNR = %0.2f',...
     bsize,R,psnr));
 end
