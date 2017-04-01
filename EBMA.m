@@ -52,14 +52,16 @@ end
 figure;
 % plots the motion vectors for each block
 quiver(MVframe(:,:,1),MVframe(:,:,2));
-title(sprintf('Motion Vector Field using search region = %d',rwidth));
+title(sprintf('Motion Vector Field: BlockSize = %d, R = %d',bsize,rwidth));
 psnr = 10*log10(255*255/immse(pframe,aframe)); 
 eframe = pframe - aframe; % residual frame between actual and predicted 
 pframe = uint8(pframe);
-eframe = uint8(eframe);
+eframe = uint8(abs(eframe));
 figure;
-imshow(eframe),title(sprintf('Residual Image using search region = %d',rwidth));
+imshow(eframe),
+title(sprintf('Residual Image: BlockSize = %d, R = %d',bsize,rwidth));
 figure;
 imshow(pframe),
-title(sprintf('Predicted Frame: R = %d, PSNR = %0.2f',rwidth,psnr));
+title(sprintf('Predicted Frame: BlockSize = %d, R = %d, PSNR = %0.2f',...
+    bsize,rwidth,psnr));
 end
