@@ -1,6 +1,6 @@
 bsize = 16;
-aframes = imread('big_buck_bunny_04210_low.png');
-tframes = imread('big_buck_bunny_04209_low.png');
+aframes = imread('BBB04217.png');
+tframes = imread('BBB04216.png');
 % [pframes , mvframes] = ChromaPredict(aframes,tframes,16);
 figure;
 image(aframes);
@@ -33,3 +33,14 @@ end
 figure;
 image(uint8(TSpframes));
 title('Three-Step');
+for i = 1:YUV
+    [pframe ,mvframe] = EBMA(aframes(:,:,i),tframes(:,:,i),bsize,7);
+    EBMApframes(:,:,i) = pframe;
+    EBMAmvframes(:,:,1,i) = mvframe(:,:,1);
+    EBMAmvframes(:,:,2,i) = mvframe(:,:,2);
+end
+figure;
+image(uint8(EBMApframes));
+title('EBMA');
+
+
