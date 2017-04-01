@@ -44,60 +44,46 @@ for y = 1:bsize:height
         mvy = 0;
         xoffset = 0;
         yoffset = 0;
-%         ablock = uint8(aframe(y:y+bsize-1,x:x+bsize-1)); % used for debug
-%         subplot(1,3,1),imshow(ablock);  % used for debug
-%         title('target block'); % for debug
 
-% searches till the range is 1 and minimizes the error using MeanAbsDiff
-while (range > 1)  
-% reduce the range by half for each step
-    range = ceil(range/2);
-    % reset the search adjustments each step
-    dx = 0;
-    dy = 0;
-    % check the center only once on first step
-    if(range == ceil(R/2))
-        MAD = sum(sum(abs(aframe(y:y+bsize-1,x:x+bsize-1) ...
-              - tframe(y:y+bsize-1,x:x+bsize-1))))/(bsize*bsize);
-%         tblock = uint8(tframe(y:y+bsize-1,x:x+bsize-1));  % for debug
-%         subplot(1,3,2),imshow(tblock);   % for debug 
-%         title('current block'); % for debug
-%         subplot(1,3,3),imshow(tblock);   % for debug                 
-%         title('best block');    % for debug
-        minMAD = MAD;
-    end
-    for i = -range:range:range
-        for j = -range:range:range
-            % if the current search block is in the image bounds
-            if(y+i+yoffset>0 && y+i+yoffset+bsize-1<height+1 &&...
-                    x+j+xoffset>0 && x+j+xoffset+bsize-1<width+1 && ...
-                    (i > 0 || j> 0))
-               % compare blocks between images
-              MAD = sum(sum(abs(aframe(y:y+bsize-1,x:x+bsize-1) ...
-                      - tframe(y+i+yoffset:y+i+yoffset+bsize-1,...
-                     x+j+xoffset:x+j+xoffset+bsize-1))))/(bsize*bsize);
-%                 tblock = uint8(tframe(y+i+yoffset:y+i+yoffset+bsize-1,...
-%                     x+j+xoffset:x+j+xoffset+bsize-1));  % for debug 
-%                 subplot(1,3,2),imshow(tblock); % for debug
-%                 title('current block'); % for debug
-           % if a block with a lower MAD is found, keep track of the
-           % adjustments, and save new MAD value
-            if (MAD < minMAD)
-%                 subplot(1,3,3),imshow(tblock);   % for debug                 
-%                 title('best block'); % for debug
-                minMAD = MAD;
-                dx = j;
-                dy = i;
-            end
+    % searches till the range is 1 and minimizes the error using MeanAbsDiff
+    while (range > 1)  
+    % reduce the range by half for each step
+        range = ceil(range/2);
+        % reset the search adjustments each step
+        dx = 0;
+        dy = 0;
+        % check the center only once on first step
+        if(range == ceil(R/2))
+            MAD = sum(sum(abs(aframe(y:y+bsize-1,x:x+bsize-1) ...
+                  - tframe(y:y+bsize-1,x:x+bsize-1))))/(bsize*bsize);
+            minMAD = MAD;
+        end
+        for i = -range:range:range
+            for j = -range:range:range
+                % if the current search block is in the image bounds
+                if(y+i+yoffset>0 && y+i+yoffset+bsize-1<height+1 &&...
+                        x+j+xoffset>0 && x+j+xoffset+bsize-1<width+1 && ...
+                        (i ~= 0 || j ~=  0)) % and not center block
+                   % compare blocks between images
+                  MAD = sum(sum(abs(aframe(y:y+bsize-1,x:x+bsize-1) ...
+                          - tframe(y+i+yoffset:y+i+yoffset+bsize-1,...
+                         x+j+xoffset:x+j+xoffset+bsize-1))))/(bsize*bsize);
+               % if a block with a lower MAD is found, keep track of the
+               % adjustments, and save new MAD value
+                if (MAD < minMAD)
+                    minMAD = MAD;
+                    dx = j;
+                    dy = i;
+                end
+                end
             end
         end
+        % update the offsets and the motion vectors
+        xoffset = xoffset + dx;
+        yoffset = yoffset + dy;
+        mvx = mvx + dx;
+        mvy = mvy + dy;
     end
-    % update the offsets and the motion vectors
-    xoffset = xoffset + dx;
-    yoffset = yoffset + dy;
-    mvx = mvx + dx;
-    mvy = mvy + dy;
-end
         % build up the motion vectors of the frame
         MVframe((y-1)/bsize+1,(x-1)/bsize+1,1) = xoffset;
         MVframe((y-1)/bsize+1,(x-1)/bsize+1,2) = yoffset;
@@ -108,20 +94,4 @@ end
 end
 % removes the zero padding from macroblocking
 pframe = pframe(1:end-hpads,1:end-wpads);
-% aframe = aframe(1:end-hpads,1:end-wpads);
-% % plots the motion vectors for each block
-% figure;
-% quiver(MVframe(:,:,1),MVframe(:,:,2));
-% title(sprintf('3-Step Motion Vector Field: BlockSize = %d, R = %d',bsize,R));
-% psnr = 10*log10(255*255/immse(pframe,aframe)); 
-% eframe = pframe - aframe; % residual frame between actual and predicted 
-% pframe = uint8(pframe);
-% eframe = uint8(abs(eframe));
-% figure;
-% imshow(eframe),
-% title(sprintf('3-Step Residual Image: BlockSize = %d, R = %d',bsize,R));
-% figure;
-% imshow(pframe),
-% title(sprintf('3-Step Predicted Frame: BlockSize = %d, R = %d, PSNR = %0.2f',...
-%     bsize,R,psnr));
 end

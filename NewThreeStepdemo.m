@@ -1,5 +1,9 @@
-function [pframe, mvframe] = NewThreeStep(aframe,tframe,bsize)
+function [pframe, mvframe] = NewThreeStepdemo(aframe,tframe,bsize)
 % New 3-Step search block matching algorithm for motion compensation:
+% displays the blocks during the the block matching 
+% set the initial x and y values in the for loops to start the demo at 
+% a specific point in the image, start must be a multiple of the block size
+% plus one. (eg. x = 5*bsize+1:bsize:height)
 %  @arg
 %       aframe: anchor/current frame
 %       tframe: target/reference frame
@@ -13,6 +17,15 @@ function [pframe, mvframe] = NewThreeStep(aframe,tframe,bsize)
 %  Produces the Motion Vector Field, the Residual Frame, and a Predicted 
 %  Frame from the Motion Vector Field.
 
+% display the anchor and target frames first
+figure;
+subplot(1,2,1);
+imshow(aframe);
+title('Anchor frame');
+subplot(1,2,2);
+imshow(tframe);
+title('Target frame');
+figure;
 [height, width] = size(aframe);
 aframe = double(aframe);
 tframe = double(tframe);
@@ -36,14 +49,18 @@ modifiedsize = size(aframe);
 pframe = zeros(modifiedsize(1),modifiedsize(2));
 mvframe = zeros(modifiedsize(1)/bsize,modifiedsize(2)/bsize,2);
 % for every macro block in the image a search is made
-for y = 1:bsize:height
-    for x = 1:bsize:width
+for y = 14*bsize+1:bsize:height
+    for x = 10*bsize+1:bsize:width
         % reset the search variables for each macro block
         MAD = 255; % max error possible
         minMAD = MAD; % set the reference error to worst case
         range = 4;
         xoffset = 0;
         yoffset = 0;
+        ablock = uint8(aframe(y:y+bsize-1,x:x+bsize-1)); % used for debug
+        subplot(1,3,1),imshow(ablock);  % used for debug
+        title('anchor block'); % for debug
+
 % search 8 edge blocks at range 4 and 1 center first
 for i = -range:range:range
     for j = -range:range:range
@@ -51,12 +68,18 @@ for i = -range:range:range
         if((y+i>0) && (y+i+bsize-1<height+1) && ...
                 (x+j>0) && (x+j+bsize-1<width+1))
            % compare blocks between frames
-          MAD = sum(sum(abs(aframe(y:y+bsize-1,x:x+bsize-1) ...
-                  - tframe(y+i:y+i+bsize-1,x+j:x+j+bsize-1)))) ...
+            MAD = sum(sum(abs(aframe(y:y+bsize-1,x:x+bsize-1) ...
+                - tframe(y+i:y+i+bsize-1,x+j:x+j+bsize-1)))) ...
                   /(bsize*bsize);
+            tblock = uint8(tframe(y+i:y+i+bsize-1,...
+                    x+j:x+j+bsize-1));  % for debug 
+                subplot(1,3,2),imshow(tblock); % for debug
+                title('target block'); % for debug
 %        if a block with a lower MAD is found, keep track of the
        % adjustments, and save new MAD value
         if (MAD < minMAD)
+            subplot(1,3,3),imshow(tblock);   % for debug                 
+            title(sprintf('best MAD:%.2f',MAD)); % for debug
             minMAD = MAD;
             xoffset = j;
             yoffset = i;
@@ -75,9 +98,15 @@ for i = -1:1
           MAD = sum(sum(abs(aframe(y:y+bsize-1,x:x+bsize-1) ...
                   - tframe(y+i:y+i+bsize-1,x+j:x+j+bsize-1)))) ...
                   /(bsize*bsize);
+                tblock = uint8(tframe(y+i:y+i+bsize-1,...
+                    x+j:x+j+bsize-1));  % for debug 
+                subplot(1,3,2),imshow(tblock); % for debug
+                title('target block'); % for debug
 %        if a block with a lower MAD is found, keep track of the
        % adjustments, and save new MAD value
         if (MAD < minMAD)
+            subplot(1,3,3),imshow(tblock);   % for debug                 
+            title(sprintf('best MAD:%.2f',MAD)); % for debug
             minMAD = MAD;
             xoffset = j;
             yoffset = i;
@@ -116,9 +145,15 @@ elseif(abs(xoffset) == 4 || abs(yoffset) == 4)
                   MAD = sum(sum(abs(aframe(y:y+bsize-1,x:x+bsize-1) ...
                           - tframe(y+i+yoffset:y+i+yoffset+bsize-1,...
                          x+j+xoffset:x+j+xoffset+bsize-1))))/(bsize*bsize);
+                tblock = uint8(tframe(y+i+yoffset:y+i+yoffset+bsize-1,...
+                    x+j+xoffset:x+j+xoffset+bsize-1));  % for debug 
+                subplot(1,3,2),imshow(tblock); % for debug
+                title('target block'); % for debug
                % if a block with a lower MAD is found, keep track of the
                % adjustments, and save new MAD value
                 if (MAD < minMAD)
+                    subplot(1,3,3),imshow(tblock);   % for debug                 
+                    title(sprintf('best MAD:%.2f',MAD)); % for debug
                     minMAD = MAD;
                     dx = j;
                     dy = i;
@@ -146,9 +181,15 @@ else
                 MAD = sum(sum(abs(aframe(y:y+bsize-1,x:x+bsize-1) ...
                       - tframe(y+2*yoffset:y+2*yoffset+bsize-1,...
                      x+j:x+j+bsize-1))))/(bsize*bsize);
+                tblock = uint8(tframe(y+2*yoffset:y+2*yoffset+bsize-1,...
+                    x+j:x+j+bsize-1));  % for debug 
+                subplot(1,3,2),imshow(tblock); % for debug
+                title('target block'); % for debug
            % if a block with a lower MAD is found, keep track of the
            % adjustments, and save new MAD value
                 if (MAD < minMAD)
+                    subplot(1,3,3),imshow(tblock);   % for debug                 
+                    title(sprintf('best MAD:%.2f',MAD)); % for debug
                     minMAD = MAD;
                     dx = j;
                     dy = 2*yoffset;
@@ -169,9 +210,15 @@ else
                 MAD = sum(sum(abs(aframe(y:y+bsize-1,x:x+bsize-1) ...
                       - tframe(y+i:y+i+bsize-1,...
                      x+2*xoffset:x+2*xoffset+bsize-1))))/(bsize*bsize);
+                tblock = uint8(tframe(y+i:y+i+bsize-1,...
+                    x+2*xoffset:x+2*xoffset+bsize-1));  % for debug 
+                subplot(1,3,2),imshow(tblock); % for debug
+                title('target block'); % for debug
            % if a block with a lower MAD is found, keep track of the
            % adjustments, and save new MAD value
                 if (MAD < minMAD)
+                    subplot(1,3,3),imshow(tblock);   % for debug                 
+                    title(sprintf('best MAD:%.2f',MAD)); % for debug
                     minMAD = MAD;
                     dx = 2*xoffset;
                     dy = i;
@@ -191,9 +238,15 @@ else
             MAD = sum(sum(abs(aframe(y:y+bsize-1,x:x+bsize-1) ...
                   - tframe(y+2*yoffset:y+2*yoffset+bsize-1,...
                  x+2*xoffset:x+2*xoffset+bsize-1))))/(bsize*bsize);
+            tblock = uint8(tframe(y+2*yoffset:y+2*yoffset+bsize-1,...
+                x+2*xoffset:x+2*xoffset+bsize-1));  % for debug 
+            subplot(1,3,2),imshow(tblock); % for debug
+            title('target block'); % for debug
            % if a block with a lower MAD is found, keep track of the
            % adjustments, and save new MAD value
             if (MAD < minMAD)
+                subplot(1,3,3),imshow(tblock);   % for debug                 
+                title(sprintf('best MAD:%.2f',MAD)); % for debug
                 minMAD = MAD;
                 dx = 2*xoffset;
                 dy = 2*yoffset;
@@ -207,9 +260,15 @@ else
                 MAD = sum(sum(abs(aframe(y:y+bsize-1,x:x+bsize-1) ...
                       - tframe(y+2*yoffset:y+2*yoffset+bsize-1,...
                     x+j+2*xoffset:x+j+2*xoffset+bsize-1))))/(bsize*bsize);
+                tblock = uint8(tframe(y+2*yoffset:y+2*yoffset+bsize-1,...
+                    x+j+2*xoffset:x+j+2*xoffset+bsize-1));  % for debug 
+                subplot(1,3,2),imshow(tblock); % for debug
+                title('target block'); % for debug
                % if a block with a lower MAD is found, keep track of the
                % adjustments, and save new MAD value
                 if (MAD < minMAD)
+                    subplot(1,3,3),imshow(tblock);   % for debug                 
+                    title(sprintf('best MAD:%.2f',MAD)); % for debug
                     minMAD = MAD;
                     dx = 2*xoffset+j;
                     dy = 2*yoffset;
@@ -224,9 +283,15 @@ else
                 MAD = sum(sum(abs(aframe(y:y+bsize-1,x:x+bsize-1) ...
                       - tframe(y+i+2*yoffset:y+i+2*yoffset+bsize-1,...
                     x+2*xoffset:x+2*xoffset+bsize-1))))/(bsize*bsize);
+            tblock = uint8(tframe(y+i+2*yoffset:y+i+2*yoffset+bsize-1,...
+                x+2*xoffset:x+2*xoffset+bsize-1));  % for debug 
+            subplot(1,3,2),imshow(tblock); % for debug
+            title('target block'); % for debug
               % if a block with a lower MAD is found, keep track of the
               % adjustments, and save new MAD value
                 if (MAD < minMAD)
+                    subplot(1,3,3),imshow(tblock);   % for debug                 
+                    title(sprintf('best MAD:%.2f',MAD)); % for debug
                     minMAD = MAD;
                     dx = 2*xoffset+j;
                     dy = 2*yoffset;
@@ -247,4 +312,20 @@ end
 end
 % removes the zero padding from macroblocking
 pframe = pframe(1:end-hpads,1:end-wpads);
+aframe = aframe(1:end-hpads,1:end-wpads);
+% plots the motion vectors for each block
+figure;
+quiver(mvframe(:,:,1),mvframe(:,:,2));
+title(sprintf('New-3-Step Motion Vector Field: BlockSize = %d',bsize));
+psnr = 10*log10(255*255/immse(pframe,aframe)); 
+eframe = pframe - aframe; % residual frame between actual and predicted 
+eframe = uint8(abs(eframe));
+figure;
+imshow(eframe),
+title(sprintf('New-3-Step Residual Image: BlockSize = %d',bsize));
+pframe = uint8(pframe);
+figure;
+imshow(pframe),
+title(sprintf('New-3-Step Predicted Frame: BlockSize = %d,PSNR = %0.2f',...
+    bsize,psnr));
 end
