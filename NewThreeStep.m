@@ -1,21 +1,17 @@
-function [pframe, mvframe] = NewThreeStep(aframe,tframe,bsize)
+function [pframes] = NewThreeStep(aframes,tframes,bsize)
 % New 3-Step search block matching algorithm for motion compensation:
 %  @arg
-%       aframe: anchor/current frame
-%       tframe: target/reference frame
+%       aframe: anchor/current RGB frames 
+%       tframe: target/reference RGB frames
 %       bsize: block size
 %      
 %  @output
-%       pframe: Predicted frame
-%       MVframe:  Motion vectors, using multidimensional array
-%              MVframe(:,:,1) are all the dx values
-%              MVframe(:,:,2) are all the dy values
-%  Produces the Motion Vector Field, the Residual Frame, and a Predicted 
-%  Frame from the Motion Vector Field.
+%       pframes: Predicted RGB frames
 
+aframe = double(aframes(:,:,1));
+pframes = zeros(size(aframes));
+tframe = double(tframes(:,:,1));
 [height, width] = size(aframe);
-aframe = double(aframe);
-tframe = double(tframe);
 wremain = mod(width,bsize);
 hremain = mod(height,bsize);
 wpads = 0;
@@ -32,9 +28,16 @@ if(hremain ~= 0)
   tframe = padarray(tframe,[hpads,0],'post');
 end
 modifiedsize = size(aframe);
-% preallocate for a modified frame size with padding
-pframe = zeros(modifiedsize(1),modifiedsize(2));
-mvframe = zeros(modifiedsize(1)/bsize,modifiedsize(2)/bsize,2);
+% preallocate for modified frames with padding
+Rpframe = zeros(modifiedsize(1),modifiedsize(2));
+Gpframe = zeros(modifiedsize(1),modifiedsize(2));
+Bpframe = zeros(modifiedsize(1),modifiedsize(2));
+Rtframe = zeros(modifiedsize(1),modifiedsize(2));
+Gtframe = zeros(modifiedsize(1),modifiedsize(2));
+Btframe = zeros(modifiedsize(1),modifiedsize(2));
+Rtframe(1:height,1:width) = tframes(:,:,1);
+Gtframe(1:height,1:width) = tframes(:,:,2);
+Btframe(1:height,1:width) = tframes(:,:,3);
 % for every macro block in the image a search is made
 for y = 1:bsize:height
     for x = 1:bsize:width
@@ -44,7 +47,7 @@ for y = 1:bsize:height
         range = 4;
         xoffset = 0;
         yoffset = 0;
-% search 8 edge blocks at range 4 and 1 center first
+% search 8 edge blocks at range 1/2 bsize and 1 center first
 for i = -range:range:range
     for j = -range:range:range
         % if the current search block is in the image bounds
@@ -89,11 +92,12 @@ end
 % if center block is best match, end search and go to next macro block
 if(xoffset == 0 && yoffset ==0)
        % build up the motion vectors of the frame
-    mvframe((y-1)/bsize+1,(x-1)/bsize+1,1) = xoffset;
-    mvframe((y-1)/bsize+1,(x-1)/bsize+1,2) = yoffset;
+%     mvframe((y-1)/bsize+1,(x-1)/bsize+1,1) = xoffset;
+%     mvframe((y-1)/bsize+1,(x-1)/bsize+1,2) = yoffset;
     % predict the anchor frame from the target frame and motion vector 
-    pframe(y:y+bsize-1,x:x+bsize-1) = tframe(y+yoffset:y+yoffset+bsize-1,...
-        x+xoffset:x+xoffset+bsize-1);
+    Rpframe(y:y+bsize-1,x:x+bsize-1) = Rtframe(y:y+bsize-1,x:x+bsize-1);
+    Gpframe(y:y+bsize-1,x:x+bsize-1) = Gtframe(y:y+bsize-1,x:x+bsize-1);
+    Bpframe(y:y+bsize-1,x:x+bsize-1) = Btframe(y:y+bsize-1,x:x+bsize-1);
     continue
     
 % if best match is at edge of range continue with normal 3 step method
@@ -238,13 +242,19 @@ else
     end
 end
     % build up the motion vectors of the frame
-    mvframe((y-1)/bsize+1,(x-1)/bsize+1,1) = xoffset;
-    mvframe((y-1)/bsize+1,(x-1)/bsize+1,2) = yoffset;
+%     mvframe((y-1)/bsize+1,(x-1)/bsize+1,1) = xoffset;
+%     mvframe((y-1)/bsize+1,(x-1)/bsize+1,2) = yoffset;
     % predict the anchor frame from the target frame and motion vector 
-   pframe(y:y+bsize-1,x:x+bsize-1) = tframe(y+yoffset:y+yoffset+bsize-1,...
-        x+xoffset:x+xoffset+bsize-1);
+   Rpframe(y:y+bsize-1,x:x+bsize-1) = Rtframe(y+yoffset:y+yoffset+bsize-1,...
+       x+xoffset:x+xoffset+bsize-1);
+   Gpframe(y:y+bsize-1,x:x+bsize-1) = Gtframe(y+yoffset:y+yoffset+bsize-1,...
+       x+xoffset:x+xoffset+bsize-1);
+   Bpframe(y:y+bsize-1,x:x+bsize-1) = Btframe(y+yoffset:y+yoffset+bsize-1,...
+       x+xoffset:x+xoffset+bsize-1);
 end
 end
 % removes the zero padding from macroblocking
-pframe = pframe(1:end-hpads,1:end-wpads);
+pframes(:,:,1) = Rpframe(1:end-hpads,1:end-wpads);
+pframes(:,:,2) = Gpframe(1:end-hpads,1:end-wpads);
+pframes(:,:,3) = Bpframe(1:end-hpads,1:end-wpads);
 end
