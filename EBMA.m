@@ -1,4 +1,4 @@
-function [pframe, MVframe] = EBMA(aframe,tframe,bsize,rwidth)
+function [pframes] = EBMA(aframes,tframes,bsize,rwidth)
 % exhaustive block matching algorithm forward motion compensation:
 %  @arg
 %       aframe: anchor/current frame
@@ -11,12 +11,12 @@ function [pframe, MVframe] = EBMA(aframe,tframe,bsize,rwidth)
 %              MVframe(:,:,1) are all the dx values
 %              MVframe(:,:,2) are all the dy values
 
+aframe = double(aframes(:,:,1));
+pframes = zeros(size(aframes));
+tframe = double(tframes(:,:,1));
 [height, width] = size(aframe);
-aframe = double(aframe);
-tframe = double(tframe);
 wremain = mod(width,bsize);
 hremain = mod(height,bsize);
-wpads = 0;
 hpads = 0;
 % adds zero padding for integer division of frame into macroblocks
 if(wremain ~= 0)
@@ -30,8 +30,15 @@ if(hremain ~= 0)
   tframe = padarray(tframe,[hpads,0],'post');
 end
 modifiedsize = size(aframe);
-pframe = zeros(modifiedsize(1),modifiedsize(2));
-MVframe = zeros(modifiedsize(1)/bsize,modifiedsize(2)/bsize,2);
+Rpframe = zeros(modifiedsize(1),modifiedsize(2));
+Gpframe = zeros(modifiedsize(1),modifiedsize(2));
+Bpframe = zeros(modifiedsize(1),modifiedsize(2));
+Rtframe = zeros(modifiedsize(1),modifiedsize(2));
+Gtframe = zeros(modifiedsize(1),modifiedsize(2));
+Btframe = zeros(modifiedsize(1),modifiedsize(2));
+Rtframe(1:height,1:width) = tframes(:,:,1);
+Gtframe(1:height,1:width) = tframes(:,:,2);
+Btframe(1:height,1:width) = tframes(:,:,3);
 for y = 1:bsize:height
     for x = 1:bsize:width
         MAD = 255; %max error possible
@@ -46,7 +53,6 @@ for y = 1:bsize:height
                     MAD = sum(sum(abs(aframe(y:y+bsize-1,x:x+bsize-1) ...
                           - tframe(y+i:y+i+bsize-1,x+j:x+j+bsize-1)))) ...
                           /(bsize*bsize);
-
                 end
                % if a block with lower MAD is found keep track of the
                % displacment vector, and save new MAD value
@@ -57,14 +63,17 @@ for y = 1:bsize:height
                 end
             end
         end
-        % build up the motion vectors of the frame
-        MVframe((y-1)/bsize+1,(x-1)/bsize+1,1) = dy;
-        MVframe((y-1)/bsize+1,(x-1)/bsize+1,2) = dx;
         % predict the anchor frame from the target frame and motion vector 
-        pframe(y:y+bsize-1,x:x+bsize-1) = tframe(y+dy:y+dy+bsize-1,...
-            x+dx:x+dx+bsize-1);
+        Rpframe(y:y+bsize-1,x:x+bsize-1) = Rtframe(y+yoffset:...
+            y+yoffset+bsize-1,x+xoffset:x+xoffset+bsize-1);
+        Gpframe(y:y+bsize-1,x:x+bsize-1) = Gtframe(y+yoffset:...
+            y+yoffset+bsize-1,x+xoffset:x+xoffset+bsize-1);
+        Bpframe(y:y+bsize-1,x:x+bsize-1) = Btframe(y+yoffset:...
+            y+yoffset+bsize-1,x+xoffset:x+xoffset+bsize-1);
     end
 end
 % removes the zero padding from macroblocking
-pframe = pframe(1:end-hpads,1:end-wpads);
+pframes(:,:,1) = Rpframe(1:end-hpads,1:end-wpads);
+pframes(:,:,2) = Gpframe(1:end-hpads,1:end-wpads);
+pframes(:,:,3) = Bpframe(1:end-hpads,1:end-wpads);
 end

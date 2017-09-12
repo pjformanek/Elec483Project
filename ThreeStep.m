@@ -1,10 +1,11 @@
-function [pframe, MVframe] = ThreeStep(aframe,tframe,bsize,R)
+function [pframes] = ThreeStep(aframes,tframes,bsize,R)
 % 3Step search block matching algorithm for motion compensation:
 %  @arg
 %       aframe: anchor/current frame
 %       tframe: target/reference frame
 %       bsize: block size
-%       R:  search range, the total search area is ((2*R+1)^2)
+%       R:  search range, if odd, total search area is (((2*R)+1)^2)pel
+%                         if even total search area is (((2*R)-1)^2)pel
 %  @output
 %       pframe: Predicted frame
 %       MVframe:  Motion vectors, using multidimensional array
@@ -13,13 +14,15 @@ function [pframe, MVframe] = ThreeStep(aframe,tframe,bsize,R)
 %  Produces the Motion Vector Field, the Residual Frame, and a Predicted 
 %  Frame from the Motion Vector Field.
 
+
+aframe = double(aframes(:,:,1));
+pframes = zeros(size(aframes));
+tframe = double(tframes(:,:,1));
 [height, width] = size(aframe);
-aframe = double(aframe);
-tframe = double(tframe);
 wremain = mod(width,bsize);
 hremain = mod(height,bsize);
-wpads = 0;
 hpads = 0;
+wpads = 0;
 % adds zero padding for integer division of frame into macroblocks
 if(wremain ~= 0)
    wpads = bsize-wremain;
@@ -32,8 +35,15 @@ if(hremain ~= 0)
   tframe = padarray(tframe,[hpads,0],'post');
 end
 modifiedsize = size(aframe);
-pframe = zeros(modifiedsize(1),modifiedsize(2));
-MVframe = zeros(modifiedsize(1)/bsize,modifiedsize(2)/bsize,2);
+Rpframe = zeros(modifiedsize(1),modifiedsize(2));
+Gpframe = zeros(modifiedsize(1),modifiedsize(2));
+Bpframe = zeros(modifiedsize(1),modifiedsize(2));
+Rtframe = zeros(modifiedsize(1),modifiedsize(2));
+Gtframe = zeros(modifiedsize(1),modifiedsize(2));
+Btframe = zeros(modifiedsize(1),modifiedsize(2));
+Rtframe(1:height,1:width) = tframes(:,:,1);
+Gtframe(1:height,1:width) = tframes(:,:,2);
+Btframe(1:height,1:width) = tframes(:,:,3);
 for y = 1:bsize:height
     for x = 1:bsize:width
         % reset the search variables for each block
@@ -45,7 +55,7 @@ for y = 1:bsize:height
         xoffset = 0;
         yoffset = 0;
 
-    % searches till the range is 1 and minimizes the error using MeanAbsDiff
+    % searches till the range is 1 and minimizes the error with MeanAbsDiff
     while (range > 1)  
     % reduce the range by half for each step
         range = ceil(range/2);
@@ -84,14 +94,16 @@ for y = 1:bsize:height
         mvx = mvx + dx;
         mvy = mvy + dy;
     end
-        % build up the motion vectors of the frame
-        MVframe((y-1)/bsize+1,(x-1)/bsize+1,1) = xoffset;
-        MVframe((y-1)/bsize+1,(x-1)/bsize+1,2) = yoffset;
-        % predict the anchor frame from the target frame and motion vector 
-        pframe(y:y+bsize-1,x:x+bsize-1) = tframe(y+yoffset:y+yoffset...
-            +bsize-1, x+xoffset:x+xoffset+bsize-1);
-    end
+    Rpframe(y:y+bsize-1,x:x+bsize-1) = Rtframe(y+yoffset:y+yoffset+bsize-1,...
+       x+xoffset:x+xoffset+bsize-1);
+   Gpframe(y:y+bsize-1,x:x+bsize-1) = Gtframe(y+yoffset:y+yoffset+bsize-1,...
+       x+xoffset:x+xoffset+bsize-1);
+   Bpframe(y:y+bsize-1,x:x+bsize-1) = Btframe(y+yoffset:y+yoffset+bsize-1,...
+       x+xoffset:x+xoffset+bsize-1);
+end
 end
 % removes the zero padding from macroblocking
-pframe = pframe(1:end-hpads,1:end-wpads);
+pframes(:,:,1) = Rpframe(1:end-hpads,1:end-wpads);
+pframes(:,:,2) = Gpframe(1:end-hpads,1:end-wpads);
+pframes(:,:,3) = Bpframe(1:end-hpads,1:end-wpads);
 end
